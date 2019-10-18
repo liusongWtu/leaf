@@ -6,6 +6,7 @@ import (
 	"github.com/name5566/leaf/log"
 	"net"
 	"net/http"
+	"net/url"
 	"sync"
 	"time"
 )
@@ -18,7 +19,7 @@ type WSServer struct {
 	HTTPTimeout     time.Duration
 	CertFile        string
 	KeyFile         string
-	NewAgent        func(*WSConn) Agent
+	NewAgent        func(*WSConn, url.Values) Agent
 	ln              net.Listener
 	handler         *WSHandler
 }
@@ -27,7 +28,7 @@ type WSHandler struct {
 	maxConnNum      int
 	pendingWriteNum int
 	maxMsgLen       uint32
-	newAgent        func(*WSConn) Agent
+	newAgent        func(*WSConn,url.Values) Agent
 	upgrader        websocket.Upgrader
 	conns           WebsocketConnSet
 	mutexConns      sync.Mutex
@@ -65,7 +66,7 @@ func (handler *WSHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	handler.mutexConns.Unlock()
 
 	wsConn := newWSConn(conn, handler.pendingWriteNum, handler.maxMsgLen)
-	agent := handler.newAgent(wsConn)
+	agent := handler.newAgent(wsConn,r.URL.Query())
 	agent.Run()
 
 	// cleanup

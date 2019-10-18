@@ -5,6 +5,7 @@ import (
 	"github.com/name5566/leaf/log"
 	"github.com/name5566/leaf/network"
 	"net"
+	"net/url"
 	"reflect"
 	"time"
 )
@@ -39,10 +40,10 @@ func (gate *Gate) Run(closeSig chan bool) {
 		wsServer.HTTPTimeout = gate.HTTPTimeout
 		wsServer.CertFile = gate.CertFile
 		wsServer.KeyFile = gate.KeyFile
-		wsServer.NewAgent = func(conn *network.WSConn) network.Agent {
+		wsServer.NewAgent = func(conn *network.WSConn, params url.Values) network.Agent {
 			a := &agent{conn: conn, gate: gate}
 			if gate.AgentChanRPC != nil {
-				gate.AgentChanRPC.Go("NewAgent", a)
+				gate.AgentChanRPC.Go("NewAgent", a, params)
 			}
 			return a
 		}
@@ -129,6 +130,15 @@ func (a *agent) WriteMsg(msg interface{}) {
 			return
 		}
 		err = a.conn.WriteMsg(data...)
+		if err != nil {
+			log.Error("write message %v error: %v", reflect.TypeOf(msg), err)
+		}
+	}
+}
+
+func (a *agent) WriteRawMsg(msg []byte) {
+	if a.gate.Processor != nil {
+		err := a.conn.WriteMsg(msg)
 		if err != nil {
 			log.Error("write message %v error: %v", reflect.TypeOf(msg), err)
 		}
